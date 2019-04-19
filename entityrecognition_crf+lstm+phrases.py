@@ -203,6 +203,6 @@ p = np.argmax(p, axis = -1)
 print(p[0][:20])
 print("{:15}||{}".format("Word", "Prediction"))
 print(30 * "=")
-for w, pred in zip(test_sentences.split(), p[0]):
+for w, pred in zip(tokens, p[0]):
     print("{:15}: {:5}".format(w, tags[pred]))
 
