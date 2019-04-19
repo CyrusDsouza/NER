@@ -8,6 +8,8 @@ import unicodedata
 from nltk import word_tokenize, sent_tokenize, pos_tag
 from nltk.corpus import stopwords
 import csv
+import spacy
+nlp = spacy.load('en_core_web_sm')
 from pickle import load
 
 # try:
@@ -19,9 +21,17 @@ from pickle import load
 
 class NERDataProcessor(object):
 
-    def __init__(self , important_entities = False):
+    def __init__(self , important_entities = False, allowed_tags = False):
         self.total_number = 1
-        self.important_entities = important_entities
+        if not important_entities:
+            self.important_entities = {}
+        else:
+            self.important_entities = important_entities
+
+        if not allowed_tags: 
+            self.allowed_tags = []
+        else:
+            self.allowed_tags = allowed_tags
 
     def _remove_non_ascii(self, words):
         """Remove non-ASCII characters from list of tokenized words"""
@@ -97,18 +107,61 @@ class NERDataProcessor(object):
     def get_POS(self, text):
         sentences = sent_tokenize(text)
         all_meta = []
-        for sent in sentences: 
+        for sentnumber,sent in enumerate(sentences,1): 
             tokens = word_tokenize(sent)
+            refined_sentence = ' '.join(tokens)
+            self.spacy = nlp(unicode(refined_sentence))
+            self.spacy_labels =  [(X.text.lower(), X.label_) for X in self.spacy.ents]
+            self.spacy_postags = [(token.text, token.tag_) for token in self.spacy]
+            self.spacy_phrases = {chunk.text.lower() : (chunk.label_, chunk.root.text) for chunk in self.spacy.noun_chunks}
+        
+
+            print("Sentence {}".format(sentnumber))
+
+            if 0:
+                print("-"*100)
+                print
+                print("Tokens----> " , tokens)
+                print
+                # print("Ranked Phrases---> ", self.ranked_phrases)
+                print
+                print("Spacy Phrases --> ", self.spacy_phrases)
+                print
+                print("Spacy NER --->  ", self.spacy_labels)
+                print
+                print("Spacy POS -->  ", self.spacy_postags)
+                print("-"*100)
+
+
+            tokens.extend([phrase for phrase in self.spacy_phrases])
+
             tokens = self.normalize(tokens)
             pos_tagged = pos_tag(tokens)
-            # refined_sentence = ' '.join(tokens).strip()
+            refined_sentence = ' '.join(tokens).strip()
 
             # if self.important_entities:
+
             #     self.tag_entities(refined_sentence)
+            # import pdb; pdb.set_trace()
 
-            tags = ['O' for _ in range(len(pos_tagged))]
+            tags = []
+            for word,pos in pos_tagged:
+                
+                if self.important_entities.get(word,False):
+                    tags.append(self.important_entities.get('word','O'))
+                
+                elif self.spacy_phrases.get(word,False):
+                    if self.spacy_phrases.get(word)[1].lower() in self.allowed_tags:
+                        tags.append(self.spacy_phrases.get(word)[1])
+                    else:
+                        tags.append('O')
 
-            meta = [(x[0][0],x[0][1],x[1]) for x in zip(pos_tagged,tags)]
+                else:
+                    tags.append('O')
+                    
+            # tags = ['O' for _ in range(len(pos_tagged))]
+            
+            meta = [(x[0][0],x[0][1],x[1].lower()) for x in zip(pos_tagged,tags)]
 
             all_meta.append(meta)
 
@@ -132,7 +185,7 @@ class NERDataProcessor(object):
 
                         if self.important_entities:
                             if word in self.important_entities:
-                                tag = self.important_entities.get(word,'O')
+                                tag = self.important_entities.get(word,'o')
                             
 
                         if wordnumber: #FIRST WORD IN THE SENTENCE
@@ -178,6 +231,10 @@ class NERDataProcessor(object):
 if __name__ == "__main__":
 
     directory = 'data/'
+    
+    allowed_tags = ["company", "customer", "services", "party", "services", "agreement", "products", "seller","buyer", "devices", "section", "devices", "it", "terms", "software", "parties", "date", "time", "information"]                     
 
-    np = NERDataProcessor(important_entities = {'xx' : 'B-company', 'yy': 'B-company', 'zz': 'B-company'})
+
+    np = NERDataProcessor(important_entities = {'hp' : 'company', 'dxc': 'company', 'delaware': 'company'},
+                          allowed_tags = allowed_tags )
     np.process_data(directory)
