@@ -11,6 +11,7 @@ import csv
 import spacy
 nlp = spacy.load('en_core_web_sm')
 from pickle import load
+from gensim import models 
 
 # try:
 #     word_embeddings = load(open("models/numberbatch-en.pkl",'rb'))
@@ -18,6 +19,9 @@ from pickle import load
 
 # except Exception as e:
 #     print(e)
+
+
+all_sentences = []
 
 class NERDataProcessor(object):
 
@@ -32,6 +36,8 @@ class NERDataProcessor(object):
             self.allowed_tags = []
         else:
             self.allowed_tags = allowed_tags
+
+        # self.all_sentences = []
 
     def _remove_non_ascii(self, words):
         """Remove non-ASCII characters from list of tokenized words"""
@@ -110,6 +116,8 @@ class NERDataProcessor(object):
         for sentnumber,sent in enumerate(sentences,1): 
             tokens = word_tokenize(sent)
             refined_sentence = ' '.join(tokens)
+
+
             self.spacy = nlp(unicode(refined_sentence))
             self.spacy_labels =  [(X.text.lower(), X.label_) for X in self.spacy.ents]
             self.spacy_postags = [(token.text, token.tag_) for token in self.spacy]
@@ -138,6 +146,10 @@ class NERDataProcessor(object):
             tokens = self.normalize(tokens)
             pos_tagged = pos_tag(tokens)
             refined_sentence = ' '.join(tokens).strip()
+
+
+            all_sentences.append(tokens)
+
 
             # if self.important_entities:
 
@@ -224,16 +236,16 @@ class NERDataProcessor(object):
                 except Exception as e:
                     print(e) 
                     continue
+        
+        model = models.Word2Vec(all_sentences, min_count=1)
 
-                # messages = doc_results.messages
-                
+        model.save_word2vec_format("models/word2vec.bin")
 
 if __name__ == "__main__":
 
     directory = 'data/'
     
-    allowed_tags = ["company", "customer", "services", "party", "services", "agreement", "products", "seller","buyer", "devices", "section", "devices", "it", "terms", "software", "parties", "date", "time", "information"]                     
-
+    allowed_tags = ["company", "customer", "services", "party", "services", "agreement", "products", "seller","buyer", "devices", "section", "devices", "it", "terms", "software", "parties", "date", "time", "information"]                 
 
     np = NERDataProcessor(important_entities = {'hp' : 'company', 'dxc': 'company', 'delaware': 'company'},
                           allowed_tags = allowed_tags )
