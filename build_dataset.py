@@ -8,11 +8,20 @@ import unicodedata
 from nltk import word_tokenize, sent_tokenize, pos_tag
 from nltk.corpus import stopwords
 import csv
+from pickle import load
+
+# try:
+#     word_embeddings = load(open("models/numberbatch-en.pkl",'rb'))
+#     print("Loaded Word Embeddings")
+
+# except Exception as e:
+#     print(e)
 
 class NERDataProcessor(object):
 
-    def __init__(self):
+    def __init__(self , important_entities = False):
         self.total_number = 1
+        self.important_entities = important_entities
 
     def _remove_non_ascii(self, words):
         """Remove non-ASCII characters from list of tokenized words"""
@@ -92,10 +101,12 @@ class NERDataProcessor(object):
             tokens = word_tokenize(sent)
             tokens = self.normalize(tokens)
             pos_tagged = pos_tag(tokens)
-            refined_sentence = ' '.join(tokens).strip()
+            # refined_sentence = ' '.join(tokens).strip()
 
+            # if self.important_entities:
+            #     self.tag_entities(refined_sentence)
 
-            tags = ['' for _ in range(len(pos_tagged))]
+            tags = ['O' for _ in range(len(pos_tagged))]
 
             meta = [(x[0][0],x[0][1],x[1]) for x in zip(pos_tagged,tags)]
 
@@ -105,20 +116,24 @@ class NERDataProcessor(object):
             
     def create_dataset(self, meta):
 
-        file_exists = os.path.isfile("models/{}".format('contract_ner.csv'))
+        file_exists = os.path.isfile("models/{}".format('contract_ner1.csv'))
         try:
-            with open('models/contract_ner.csv', 'a') as writefile:
+            with open('models/contract_ner1.csv', 'a') as writefile:
                 contract_writer = csv.DictWriter(writefile, lineterminator = '\n', fieldnames = ['SentenceNumber', 'Word', 'POS', 'Tag'])
                 
                 if not file_exists:
                     contract_writer.writeheader()
 
-                    
 
                 for i, row in enumerate(meta,self.total_number): #sentences
                     for wordnumber, (word, pos, tag) in enumerate(row): #word in each sentence
                         if not len(word.strip()): #not a word.
                             continue
+
+                        if self.important_entities:
+                            if word in self.important_entities:
+                                tag = self.important_entities.get(word,'O')
+                            
 
                         if wordnumber: #FIRST WORD IN THE SENTENCE
                             contract_writer.writerow({"SentenceNumber": "", 
@@ -146,7 +161,9 @@ class NERDataProcessor(object):
             with open('{}/{}'.format(directory,f), 'rb') as flav: 
                 print("Processing file ---> {}".format(os.path.basename(f)))
                 try:
-                    result = mammoth.convert_to_html(flav)
+                    # result = mammoth.convert_to_html(flav)
+                    # doc_results = result.value
+                    result = mammoth.extract_raw_text(flav)
                     doc_results = result.value
                     results = self.denoise_text(doc_results)
                     meta  = self.get_POS(results)
@@ -162,5 +179,5 @@ if __name__ == "__main__":
 
     directory = 'data/'
 
-    np = NERDataProcessor()
+    np = NERDataProcessor(important_entities = {'hp' : 'B-company', 'dxc': 'B-company', 'delaware': 'B-company'})
     np.process_data(directory)
