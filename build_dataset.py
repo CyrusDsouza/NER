@@ -179,5 +179,5 @@ if __name__ == "__main__":
 
     directory = 'data/'
 
-    np = NERDataProcessor(important_entities = {'hp' : 'B-company', 'dxc': 'B-company', 'delaware': 'B-company'})
+    np = NERDataProcessor(important_entities = {'xx' : 'B-company', 'yy': 'B-company', 'zz': 'B-company'})
     np.process_data(directory)
